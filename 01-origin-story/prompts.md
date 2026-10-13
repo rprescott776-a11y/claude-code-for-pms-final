@@ -24,6 +24,12 @@ prompt library built from your own questions.
 
 ### 1.
 
+What's contradictory or missing across the wiki pages, the handover note, and the rest of this folder?
+
 ### 2.
 
+Please pull the real  acceptance numbers from rook-database. Also please check to see how many unique call outs were recorded and compare it against previous month numbers.
+
 ### 3.
+
+Yes please run a per responder breakdown and ticket counts from support_tickets against these dates
