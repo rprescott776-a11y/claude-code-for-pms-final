@@ -33,3 +33,11 @@ Please pull the real  acceptance numbers from rook-database. Also please check t
 ### 3.
 
 Yes please run a per responder breakdown and ticket counts from support_tickets against these dates
+
+### 4.
+
+Could you make a diagram showing me how the nodes in this communication system connect and provide # of handlers and responders
+
+### 5.
+
+Based on everything you now know about Rook, what should I be worried about that nobody has told me?
