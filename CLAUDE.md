@@ -151,3 +151,26 @@ code is `00-rook/code/dispatch-routing/`):**
 - Open: Wen's answer to Marcus's 4.2 question; the 4.3 release and whether
   Availability Confidence shipped; data after 7 Sep; the Halloran role
   mismatch (wiki row says handler, requisition brief says quartermaster).
+
+**Module 2 session: interviews vs tickets (Customer interviews db, 4 handlers
+2-5 Sep; support_tickets, 147 rows):**
+- Corrections to the findings above: 15 tickets say "gone before I could
+  answer" (not ~2), and 30 are quiet-responder (not 18; Linda and Desmond filed
+  20 of them). 57 of 147 tickets look tied to 4.2 (15 lost, 30 quiet, 12
+  filter tickets since 12 Aug); 50 of those are open, 83 open overall.
+- Missed pings: 1-3% a week before 4.2, then 21.5, 17.7, 14.8, 12.7%, spread
+  across all 16 responders (4-9 each). The pings table has no response time:
+  ask Ravi for ping-to-tap times. Nobody has been asked about the 60s wait.
+- Interviews: lost callouts and alert visibility came up 3 of 4, small text and
+  quiet/uneven 2 of 4. None mentioned the 60s wait or proximity. Aunt Dot, Kip,
+  Halloran filed no tickets (Vesper and Meteor Mite were among the four hit).
+- Pings a week before to since: Farlight 12 to 3.5, Meteor Mite 11 to 4.3,
+  Undertow 12 to 4.3, Vesper 14 to 5; Kip's Gale 13 to 18. Halfmoon and
+  Ashgrove filed 10 quiet tickets but fell only 11 to 9 and 10 to 8.
+- Code: weights went 0.45/0.40/0.15 to 0.60/0.25/0.15 (proximity, acceptance,
+  capability). A worst-acceptance responder is now outranked by someone ~19 min
+  closer, was ~40. Routing removes nobody; filter persistence is console-only.
+  Ambrose and 5 open tickets say persistence resets silently: Priya's "noise" is wrong.
+- Open: why 60s; whether console filters write anything routing reads (ask
+  Marcus/Wen); follow up with Ambrose and Dot on the wait; I treated the lab
+  starter prompts as not the student's own when saving prompts.
