@@ -174,3 +174,10 @@ code is `00-rook/code/dispatch-routing/`):**
 - Open: why 60s; whether console filters write anything routing reads (ask
   Marcus/Wen); follow up with Ambrose and Dot on the wait; I treated the lab
   starter prompts as not the student's own when saving prompts.
+
+**Module 3 session: pings, tickets, routing code (pings, callouts, support_tickets, dispatch-routing code):**
+- Release day is a step, not a drift: missed pings went 5% on 11 Aug to 28% on 12 Aug, peak 48% on 13 Aug. Weekly missed counts 2-6 before, then 38, 28, 24, 21. Callouts ran 137-144 a week to 3 Aug, then 110, 121, 124, 127, so "August is soft" is not shown; no prior Augusts in the data (ask Ravi).
+- The four hit (Farlight, Undertow, Meteor Mite, Vesper) were top-half for pings before 4.2 and miss 53-64% of the few pings they get. They held pings until 16 Aug, then fell from 17 Aug (about 1 week lag). Farlight's last take was 14 Aug; none pinged after 28 Aug. Their tickets match: Linda (Farlight) and Desmond (Undertow) filed 20 of 30 quiet tickets; Kip and Aunt Dot filed none. Kip also has The Gale (up 43%), so his total volume looks flat.
+- Tickets by subject: first lost-ping ticket 12 Aug, first quiet ticket 17 Aug. Lost tickets fade (7, 3, 2, 1) while missed pings stay high, so ticket counts understate it. Lost tickets come from handlers whose responders gained pings. By subject I count 13 lost, not 15. "Other" tickets also doubled, so not all of the 3x is 4.2.
+- Code: score +0.08 per take, -0.12 per decline or miss, no decay, no reset; need over 60% takes just to climb; low rank means asked last, so leftovers only. `_scores` is an in-memory dict: ask Wen whether it persists. No availability or ping-to-tap data exists in the database; Wen/Marcus need to supply the Availability Record and routing scores.
+- Open: Ravi for ping-to-tap times and prior-August volume; Availability Record history; whether 4.0 routing overrides feed the score; I saved 11 prompts and treated the first and the code-fenced "August being quiet" one as lab starters.
