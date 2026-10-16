@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rook Dispatch — quiet responder prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#14161a; --panel:#1d2026; --panel2:#252931; --line:#333843;
+    --text:#e8eaee; --muted:#9aa1ae; --accent:#6aa8ff; --warn:#f2b84b;
+    --ok:#4cc38a; --bad:#ef6b6b;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header.top { display:flex; align-items:center; gap:16px; padding:12px 24px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header.top h1 { font-size:16px; margin:0; font-weight:600; }
+  header.top .env { color:var(--muted); font-size:13px; }
+  .tabs { margin-left:auto; display:flex; gap:6px; }
+  .tab { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:6px 14px; cursor:pointer; font:inherit; }
+  .tab.active { background:var(--accent); color:#06121f; border-color:var(--accent); font-weight:600; }
+  .banner { background:#2a2616; color:var(--warn); padding:8px 24px; font-size:13px; border-bottom:1px solid #4a4020; }
+  main { max-width:1000px; margin:0 auto; padding:24px; }
+  .view { display:none; } .view.active { display:block; }
+  h2 { margin:0 0 4px; font-size:20px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:760px){ .cards{grid-template-columns:1fr;} }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .card h3 { margin:0; font-size:17px; display:flex; align-items:center; gap:8px; }
+  .card .meta { color:var(--muted); font-size:13px; margin:2px 0 14px; }
+  .stat { display:flex; align-items:baseline; gap:10px; }
+  .stat .n { font-size:34px; font-weight:700; }
+  .stat .u { color:var(--muted); }
+  .bar { height:8px; background:var(--panel2); border-radius:4px; margin:10px 0 4px; position:relative; overflow:hidden; }
+  .bar > i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; transition:width .5s, background .3s; }
+  .bar-label { color:var(--muted); font-size:12px; display:flex; justify-content:space-between; }
+  .chip { font-size:12px; font-weight:600; border-radius:999px; padding:2px 10px; }
+  .chip.quiet { background:#3a2e12; color:var(--warn); }
+  .chip.busy { background:#2b1d1d; color:#f08a8a; }
+  .chip.ok { background:#12302a; color:var(--ok); }
+  .flag { margin-top:14px; border:1px solid #5a4a1c; background:#241f10; border-radius:8px; padding:12px 14px; }
+  .flag.back { border-color:#1d5a44; background:#10231d; }
+  .flag .head { display:flex; gap:10px; align-items:center; cursor:pointer; font-weight:600; }
+  .flag .head .caret { margin-left:auto; color:var(--muted); transition:transform .2s; }
+  .flag.open .caret { transform:rotate(90deg); }
+  .flag .why { display:none; margin-top:10px; padding-top:10px; border-top:1px solid #4a3d18; color:#d6d9df; font-size:14px; }
+  .flag.back .why { border-top-color:#1d4a39; }
+  .flag.open .why { display:block; }
+  .why ul { margin:6px 0 10px 18px; padding:0; }
+  .why .note { color:var(--muted); font-size:12px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  button.btn { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:7px 12px; cursor:pointer; font:inherit; font-size:13px; }
+  button.btn:hover { border-color:var(--accent); }
+  button.btn.primary { background:var(--accent); color:#06121f; border-color:var(--accent); font-weight:600; }
+  .compare { margin-top:20px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .compare p { margin:0; flex:1 1 300px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:#0e1a14; color:var(--ok); border:1px solid #1d5a44; padding:10px 18px; border-radius:8px; opacity:0; pointer-events:none; transition:all .25s; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .stateswitch { display:flex; align-items:center; gap:10px; margin-bottom:18px; color:var(--muted); font-size:13px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .seg button { background:transparent; color:var(--muted); border:0; padding:6px 12px; cursor:pointer; font:inherit; font-size:13px; }
+  .seg button.on { background:var(--panel2); color:var(--text); font-weight:600; }
+
+  /* phone */
+  .phonewrap { display:flex; gap:40px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .phone { width:320px; background:#0b0c0f; border:10px solid #2b2e36; border-radius:36px; padding:18px 14px 22px; min-height:560px; }
+  .phone .status { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:14px; }
+  .phone h4 { margin:0 0 2px; font-size:16px; }
+  .phone .who { color:var(--muted); font-size:12px; margin-bottom:14px; }
+  .notice { background:#241f10; border:1px solid #5a4a1c; border-radius:12px; padding:14px; margin-bottom:14px; }
+  .notice.back { background:#10231d; border-color:#1d5a44; }
+  .notice b { display:block; margin-bottom:4px; }
+  .notice p { margin:4px 0 10px; font-size:14px; color:#d6d9df; }
+  .pingcard { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .pingcard .row { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
+  .pingcard h5 { margin:6px 0 10px; font-size:15px; }
+  .timer { height:6px; background:var(--panel2); border-radius:3px; overflow:hidden; margin-bottom:10px; }
+  .timer i { display:block; height:100%; width:100%; background:var(--accent); }
+  .side { max-width:340px; color:var(--muted); font-size:14px; }
+  .side h4 { color:var(--text); margin:0 0 6px; }
+  .avail { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 12px; background:var(--panel2); border-radius:8px; font-size:14px; }
+  .avail .lbl { color:var(--muted); flex:1; }
+  .sw { width:42px; height:24px; border-radius:12px; border:0; background:#4a4f5a; position:relative; cursor:pointer; padding:0; transition:background .2s; }
+  .sw i { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s; }
+  .sw.on { background:var(--ok); }
+  .sw.on i { left:21px; }
+  .offmsg { background:#1f2229; border:1px dashed var(--line); border-radius:8px; padding:10px 12px; color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .card.off .stat, .card.off .bar, .card.off .bar-label, .card.off .flag, .card.off .actions { opacity:.35; pointer-events:none; }
+  .live { margin-top:20px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; }
+  .live-top { display:flex; justify-content:space-between; align-items:baseline; }
+  .live-clock, .bigclock { font-size:30px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bigclock { text-align:center; margin:2px 0 8px; font-size:44px; }
+  .live-bottom { display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:14px; }
+  .live-bottom b { color:var(--text); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .split { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; font-size:12px; }
+  .split span { border-radius:999px; padding:2px 10px; background:var(--panel2); color:var(--muted); }
+  .split span b { color:var(--text); }
+  .split .t b { color:var(--ok); } .split .d b { color:var(--warn); } .split .m b { color:var(--bad); }
+  .spark { margin-top:8px; }
+  .spark svg { width:100%; height:64px; display:block; }
+  .spark .cap { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; margin-top:2px; }
+  .hist { margin-top:14px; }
+  .hist-title { font-size:13px; font-weight:600; margin-bottom:6px; }
+  .hist ul { list-style:none; margin:0; padding:0; font-size:13px; }
+  .hist li { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); color:var(--muted); }
+  .hist li b { font-weight:600; }
+  .hist li .taken { color:var(--ok); } .hist li .declined { color:var(--warn); } .hist li .missed { color:var(--bad); }
+  .hist-note { margin-top:8px; font-size:12px; color:var(--muted); }
+  .waitctl { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; margin-left:auto; margin-right:18px; }
+  .hidden { display:none !important; }
+  footer { max-width:1000px; margin:30px auto; padding:0 24px 40px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Rook Dispatch</h1>
+  <span class="env">Handler console · Kip</span>
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-view="console">Handler console</button>
+    <button class="tab" data-view="phone">Responder phone</button>
+  </div>
+</header>
+<div class="banner">PROTOTYPE — illustrative numbers and wording for discussion with Helen. Not built, not final. The cause of the quiet is still unproven.</div>
+
+<main>
+
+<!-- ============ CONSOLE ============ -->
+<section id="console" class="view active">
+  <h2>My responders</h2>
+  <p class="sub">Two coverage cards, side by side. This is where Kip would notice.</p>
+
+  <div class="stateswitch">
+    <span>Show console:</span>
+    <span class="seg" id="seg-console">
+      <button class="on" data-state="today">Today (4.2)</button>
+      <button data-state="after">After the fix</button>
+    </span>
+  </div>
+
+  <div class="cards">
+    <!-- Meteor Mite -->
+    <div class="card" id="card-mite">
+      <h3>Meteor Mite <span class="chip quiet" id="mite-chip">Quiet</span></h3>
+      <div class="meta">flight, de-escalation</div>
+      <div class="avail" data-who="mite">
+        <span class="lbl">Availability for callouts</span>
+        <button class="sw on" id="sw-mite" role="switch" aria-checked="true" aria-label="Meteor Mite availability"><i></i></button>
+        <b id="sw-mite-txt">Available</b>
+      </div>
+      <div class="offmsg hidden" id="off-mite">You set Meteor Mite as unavailable, so no pings are sent. This is not counted as a quiet responder.</div>
+      <div class="stat"><span class="n" id="mite-n">4</span><span class="u">pings this week</span></div>
+      <div class="bar"><i id="mite-bar" style="width:36%;background:var(--warn)"></i></div>
+      <div class="bar-label"><span>usual: 11 a week</span><span id="mite-pct">36% of usual</span></div>
+      <div class="split" id="mite-split"></div>
+      <div class="spark" id="mite-spark"></div>
+
+      <div class="flag open" id="mite-flag">
+        <div class="head" data-toggle="mite-flag">
+          <span id="mite-flag-title">⚠ Pinged much less than usual</span>
+          <span class="caret">▶</span>
+        </div>
+        <div class="why" id="mite-why">
+          <div id="mite-why-body"></div>
+        </div>
+      </div>
+      <div class="actions" id="mite-actions">
+        <button class="btn primary" id="btn-msg">Send Meteor Mite a note</button>
+        <button class="btn" id="btn-seen">Mark as seen</button>
+      </div>
+    </div>
+
+    <!-- The Gale -->
+    <div class="card" id="card-gale">
+      <h3>The Gale <span class="chip busy" id="gale-chip">Very busy</span></h3>
+      <div class="meta">structural-entry, crowd-management</div>
+      <div class="avail" data-who="gale">
+        <span class="lbl">Availability for callouts</span>
+        <button class="sw on" id="sw-gale" role="switch" aria-checked="true" aria-label="The Gale availability"><i></i></button>
+        <b id="sw-gale-txt">Available</b>
+      </div>
+      <div class="offmsg hidden" id="off-gale">You set The Gale as unavailable, so no pings are sent. Meteor Mite may be pinged more while The Gale is off.</div>
+      <div class="stat"><span class="n" id="gale-n">18</span><span class="u">pings this week</span></div>
+      <div class="bar"><i id="gale-bar" style="width:100%;background:var(--bad)"></i></div>
+      <div class="bar-label"><span>usual: 13 a week</span><span id="gale-pct">138% of usual</span></div>
+      <div class="split" id="gale-split"></div>
+      <div class="spark" id="gale-spark"></div>
+      <div class="flag open" id="gale-flag" style="border-color:#5a2a2a;background:#241414">
+        <div class="head" data-toggle="gale-flag">
+          <span id="gale-flag-title">Taking more than usual</span>
+          <span class="caret">▶</span>
+        </div>
+        <div class="why" style="border-top-color:#4a2222">
+          <div id="gale-why-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="live">
+    <div class="live-top">
+      <b>Live callout · Rooftop rescue</b>
+      <span class="waitctl">Ping wait
+        <span class="seg" id="seg-wait-c">
+          <button class="on" data-wait="60">60s (now)</button>
+          <button data-wait="90">90s (before 4.2)</button>
+        </span>
+      </span>
+      <span class="waitctl">Demo speed
+        <span class="seg" id="seg-speed-c">
+          <button data-speed="1">1x</button>
+          <button class="on" data-speed="5">5x</button>
+        </span>
+      </span>
+      <span class="live-clock" id="live-clock">1:00</span>
+    </div>
+    <div class="bar"><i id="live-bar" style="width:100%;background:var(--accent)"></i></div>
+    <div class="live-bottom">
+      <span id="live-msg"></span>
+      <button class="btn" id="live-restart">Restart demo ping</button>
+    </div>
+  </div>
+
+  <div class="compare">
+    <p id="compare-text"><b>Why the two cards look so different:</b> since 4.2, Meteor Mite is being pinged far less and The Gale far more, although both cover the same city.</p>
+    <button class="btn" id="btn-compare">Open this comparison for support</button>
+  </div>
+</section>
+
+<!-- ============ PHONE ============ -->
+<section id="phone" class="view">
+  <h2>Responder phone</h2>
+  <p class="sub">What Meteor Mite would see instead of silence.</p>
+  <div class="stateswitch">
+    <span>Show phone:</span>
+    <span class="seg" id="seg-phone">
+      <button class="on" data-state="today">Today (4.2)</button>
+      <button data-state="after">After the fix</button>
+    </span>
+  </div>
+  <div class="phonewrap">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>Rook</span></div>
+      <h4>Meteor Mite</h4>
+      <div class="who">Available for callouts</div>
+
+      <div class="notice" id="phone-notice">
+        <b id="pn-title">You're getting fewer pings than usual</b>
+        <p id="pn-body"></p>
+        <div class="actions" style="margin:0">
+          <button class="btn primary" id="pn-ok">Got it</button>
+          <button class="btn" id="pn-why">Why?</button>
+        </div>
+      </div>
+
+      <div class="pingcard" id="pingcard">
+        <div class="row"><span>New callout</span><span id="ping-secs">1:00 left</span></div>
+        <h5>Rooftop rescue — 6 min away</h5>
+        <div class="bigclock" id="ping-clock">1:00</div>
+        <div class="timer"><i id="ping-timer"></i></div>
+        <div class="actions" style="margin:0">
+          <button class="btn primary" id="ping-take">Take it</button>
+          <button class="btn" id="ping-no">Turn down</button>
+          <button class="btn" id="ping-restart">Restart</button>
+        </div>
+      </div>
+
+      <div class="hist">
+        <div class="hist-title">Your recent pings</div>
+        <ul id="hist-list"></ul>
+        <div class="hist-note" id="hist-note"></div>
+      </div>
+    </div>
+    <div class="side">
+      <h4>What this is for</h4>
+      <p>Today the phone just goes quiet. Here it says so, in plain words, and says what will change.</p>
+      <p>Try it: tap <b>Why?</b>, then press <b>Take it</b> on the callout.</p>
+      <p><b>Demo speed</b> (the clock runs faster so you needn't wait a full minute):<br>
+        <span class="seg" id="seg-speed-p">
+          <button data-speed="1">1x</button>
+          <button class="on" data-speed="5">5x</button>
+        </span></p>
+      <p><b>Ping wait</b> (how long you have to answer):<br>
+        <span class="seg" id="seg-wait-p">
+          <button class="on" data-wait="60">60s (now)</button>
+          <button data-wait="90">90s (before 4.2)</button>
+        </span><br>
+        <span id="wait-note" style="font-size:12px">Since 4.2 the wait is 60s. Compare with 90s, then let the clock run out to see a miss.</span></p>
+      <p id="phone-hint" class="hidden" style="color:var(--ok)"></p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Made from <code>05-super-speed/product-brief.md</code>. Numbers (4 vs usual 11; 18 vs usual 13) come from the Sept analysis and are illustrative. Wording of reasons is a proposal for Sofia and Wen to refine; the routing mechanism behind it is unproven. No identities appear here, only responder names.
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var state = { console:'today', phone:'today', seen:false };
+  var $ = function(id){ return document.getElementById(id); };
+
+  function toast(msg){
+    var t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('show'); },2600);
+  }
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+      $(b.dataset.view).classList.add('active');
+    });
+  });
+
+  // expandable flags
+  document.querySelectorAll('[data-toggle]').forEach(function(h){
+    h.addEventListener('click', function(){ $(h.dataset.toggle).classList.toggle('open'); });
+  });
+
+  function renderConsole(){
+    var after = state.console==='after';
+    var flag=$('mite-flag');
+    flag.classList.toggle('back', after);
+    flag.classList.add('open');
+    $('mite-n').textContent = after ? '10' : '4';
+    $('mite-pct').textContent = after ? '91% of usual' : '36% of usual';
+    var bar=$('mite-bar'); bar.style.width = after ? '91%' : '36%'; bar.style.background = after ? 'var(--ok)' : 'var(--warn)';
+    var chip=$('mite-chip'); chip.className = 'chip ' + (after?'ok':'quiet'); chip.textContent = after ? 'Back in rotation' : 'Quiet';
+    $('mite-flag-title').textContent = after ? '✓ Back in rotation' : '⚠ Pinged much less than usual';
+    $('mite-why-body').innerHTML = after
+      ? '<p>Meteor Mite is being pinged at close to the usual rate again.</p>'
+        + '<ul><li>A missed ping now counts less against a responder than turning one down.</li>'
+        + '<li>Earlier misses no longer hold the ranking down for good.</li></ul>'
+        + '<p class="note">Wording is a proposal. It depends on what Wen confirms about the routing code.</p>'
+      : '<p><b>Meteor Mite got 4 pings this week. Usually 11.</b></p>'
+        + '<ul><li>Recent missed and turned-down pings lower a responder\'s place in the order.</li>'
+        + '<li>Since 4.2, distance counts for more than track record, so someone closer is asked first.</li>'
+        + '<li>Nothing is broken on Meteor Mite\'s phone.</li></ul>'
+        + '<p class="note">Proposed wording. The routing reason is likely but not yet proven; Wen to confirm.</p>';
+
+    $('gale-n').textContent = after ? '14' : '18';
+    $('gale-pct').textContent = after ? '108% of usual' : '138% of usual';
+    var gb=$('gale-bar'); gb.style.width = after ? '78%' : '100%'; gb.style.background = after ? 'var(--accent)' : 'var(--bad)';
+    var gc=$('gale-chip'); gc.className = 'chip ' + (after?'ok':'busy'); gc.textContent = after ? 'Normal' : 'Very busy';
+    $('gale-flag-title').textContent = after ? 'Back near usual' : 'Taking more than usual';
+    $('gale-why-body').innerHTML = after
+      ? '<p>The Gale\'s load has eased as the work is shared out again.</p>'
+      : '<p>The Gale is picking up pings Meteor Mite used to get. That is not a sign Meteor Mite is ignoring them.</p>';
+
+    $('compare-text').innerHTML = after
+      ? '<b>The two cards now tell the same story.</b> Both are within normal range.'
+      : '<b>Why the two cards look so different:</b> since 4.2, Meteor Mite is being pinged far less and The Gale far more, although both cover the same city.';
+
+    $('mite-actions').style.display = after ? 'none' : 'flex';
+    document.querySelectorAll('#seg-console button').forEach(function(b){ b.classList.toggle('on', b.dataset.state===state.console); });
+    paintExtras();
+  }
+
+  // Illustrative data (not real): weekly pings, 8 weeks; week 5 = 4.2 release week.
+  var DATA = {
+    mite: { today:{ weeks:[11,12,10,11,5,4,4,4], t:0, d:1, m:3 },
+            after:{ weeks:[11,12,10,11,5,4,7,10], t:7, d:1, m:2 } },
+    gale: { today:{ weeks:[13,12,14,13,17,18,19,18], t:14, d:1, m:3 },
+            after:{ weeks:[13,12,14,13,17,16,15,14], t:11, d:1, m:2 } }
+  };
+  function spark(weeks, color){
+    var w=300, h=60, pad=6, max=Math.max.apply(null,weeks)*1.1, n=weeks.length;
+    function x(i){ return pad + i*(w-2*pad)/(n-1); }
+    function y(v){ return h-pad - v/max*(h-2*pad); }
+    var pts=weeks.map(function(v,i){ return x(i)+','+y(v); }).join(' ');
+    var rel=x(4);
+    return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" role="img" aria-label="Pings per week, last 8 weeks">'
+      + '<line x1="'+rel+'" y1="0" x2="'+rel+'" y2="'+h+'" stroke="#6b7280" stroke-dasharray="3 3"/>'
+      + '<polyline fill="none" stroke="'+color+'" stroke-width="2.5" points="'+pts+'"/>'
+      + '<circle cx="'+x(n-1)+'" cy="'+y(weeks[n-1])+'" r="3.5" fill="'+color+'"/></svg>'
+      + '<div class="cap"><span>8 weeks ago</span><span>▏4.2 shipped (12 Aug)</span><span>this week</span></div>';
+  }
+  function paintExtras(){
+    ['mite','gale'].forEach(function(who){
+      var d = DATA[who][state.console];
+      $(who+'-split').innerHTML =
+        '<span class="t"><b>'+d.t+'</b> taken</span><span class="d"><b>'+d.d+'</b> turned down</span><span class="m"><b>'+d.m+'</b> missed</span>';
+      $(who+'-spark').innerHTML = spark(d.weeks, who==='mite' ? (state.console==='after' ? '#4cc38a' : '#f2b84b') : '#6aa8ff');
+    });
+  }
+
+  var HIST = {
+    today: [ ['Tue','Fire, east side','missed'], ['Mon','Flood, harbour','missed'], ['Sat','Collapse, north','turned down'], ['Fri','Rescue, bridge','missed'], ['Thu','Fire, docks','missed'] ],
+    after: [ ['Tue','Fire, east side','taken'], ['Mon','Flood, harbour','taken'], ['Sat','Collapse, north','missed'], ['Fri','Rescue, bridge','taken'], ['Thu','Fire, docks','taken'] ]
+  };
+  function paintHistory(){
+    var ul=$('hist-list'); ul.innerHTML='';
+    HIST[state.phone].forEach(function(r){
+      var cls = r[2]==='turned down' ? 'declined' : r[2];
+      var li=document.createElement('li');
+      li.innerHTML='<span>'+r[0]+' · '+r[1]+'</span><b class="'+cls+'">'+r[2][0].toUpperCase()+r[2].slice(1)+'</b>';
+      ul.appendChild(li);
+    });
+    $('hist-note').textContent = state.phone==='after'
+      ? 'A missed ping now counts less than turning one down. These are your own pings only.'
+      : 'Missed and turned-down pings both lower your place in the order today. These are your own pings only.';
+  }
+
+  document.querySelectorAll('#seg-console button').forEach(function(b){
+    b.addEventListener('click', function(){ state.console=b.dataset.state; renderConsole(); });
+  });
+
+  // handler sets availability
+  function setAvail(who, on, label){
+    var sw=$('sw-'+who);
+    sw.classList.toggle('on', on); sw.setAttribute('aria-checked', on);
+    $('sw-'+who+'-txt').textContent = on ? 'Available' : 'Unavailable';
+    $('off-'+who).classList.toggle('hidden', on);
+    $('card-'+who).classList.toggle('off', !on);
+    toast(label+' set to '+(on?'available':'unavailable')+'. Saved to the Availability Record (Supply reads it). Prototype: not saved.');
+  }
+  $('sw-mite').addEventListener('click', function(){ setAvail('mite', !$('sw-mite').classList.contains('on'), 'Meteor Mite'); });
+  $('sw-gale').addEventListener('click', function(){ setAvail('gale', !$('sw-gale').classList.contains('on'), 'The Gale'); });
+
+  $('btn-msg').addEventListener('click', function(){
+    toast('Note drafted for Meteor Mite: "Your pings dropped after 4.2. We are looking at it." (not sent — prototype)');
+  });
+  $('btn-seen').addEventListener('click', function(){
+    var c=$('mite-chip'); c.textContent='Seen by Kip'; toast('Marked as seen. The flag stays until pings recover.');
+  });
+  $('btn-compare').addEventListener('click', function(){
+    toast('Comparison shared with Nadia (not sent — prototype)');
+  });
+
+  function renderPhone(){
+    var after = state.phone==='after';
+    var n=$('phone-notice');
+    n.classList.toggle('back', after);
+    $('pn-title').textContent = after ? "You're back in the rotation" : "You're getting fewer pings than usual";
+    $('pn-body').textContent = after
+      ? "Your recent pings count fairly again. You should see callouts at your usual rate."
+      : "Nothing is wrong with your phone. Since 4.2, closer responders are asked first, and recent missed pings count against you. We are working on a way back.";
+    $('pn-why').classList.toggle('hidden', after);
+    n.classList.remove('hidden');
+    document.querySelectorAll('#seg-phone button').forEach(function(b){ b.classList.toggle('on', b.dataset.state===state.phone); });
+    paintHistory();
+  }
+  document.querySelectorAll('#seg-phone button').forEach(function(b){
+    b.addEventListener('click', function(){ state.phone=b.dataset.state; renderPhone(); });
+  });
+  $('pn-ok').addEventListener('click', function(){ $('phone-notice').classList.add('hidden'); });
+  $('pn-why').addEventListener('click', function(){
+    var h=$('phone-hint'); h.classList.remove('hidden');
+    h.textContent = 'Plain reason: more distance and recent missed pings both lower your place in the order. Turning down and missing are both counted today; the fix would treat a miss more lightly.';
+  });
+
+  // ping countdown (60s wait is the current setting)
+  // One shared clock drives both the console strip and the phone card.
+  var SPEED=5; // demo speed: 5x so a full 60s ping runs in 12 real seconds
+  var WAIT=60, left=WAIT, iv, outcome=null; // outcome: null | taken | declined | missed
+  function mmss(s){ return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+  function paintPing(){
+    var pct=outcome?0:(left/WAIT*100), urgent=!outcome && left<=15;
+    var color = urgent ? 'var(--bad)' : 'var(--accent)';
+    var label, cls='';
+    if(outcome==='taken'){ label='Taken'; pct=100; color='var(--ok)'; }
+    else if(outcome==='declined'){ label='Turned down'; }
+    else if(outcome==='missed'){ label='Missed'; }
+    else { label=mmss(left); }
+    // phone
+    $('ping-secs').textContent = outcome ? label : label+' left';
+    $('ping-clock').textContent = label;
+    $('ping-clock').style.color = urgent ? 'var(--bad)' : (outcome==='taken'?'var(--ok)':'var(--text)');
+    $('ping-timer').style.width = pct+'%'; $('ping-timer').style.background = color;
+    $('ping-take').disabled = $('ping-no').disabled = !!outcome;
+    // console
+    $('live-clock').textContent = label;
+    $('live-clock').style.color = urgent ? 'var(--bad)' : (outcome==='taken'?'var(--ok)':'var(--text)');
+    $('live-bar').style.width = pct+'%'; $('live-bar').style.background = color;
+    var msg;
+    if(outcome==='taken') msg='Meteor Mite <b>took</b> the callout.';
+    else if(outcome==='declined') msg='Meteor Mite <b>turned it down</b>. Moved on to the next responder.';
+    else if(outcome==='missed') msg='No answer from Meteor Mite in '+WAIT+'s. <b>Missed</b>, moved on to the next responder.';
+    else msg='Pinged Meteor Mite. Waiting for an answer ('+WAIT+'s wait).';
+    $('live-msg').innerHTML = msg;
+  }
+  function startPing(){
+    clearInterval(iv); left=WAIT; outcome=null; paintPing();
+    iv=setInterval(function(){
+      left--;
+      if(left<=0){ clearInterval(iv); left=0; outcome='missed'; }
+      paintPing();
+    },1000/SPEED);
+  }
+  startPing();
+  $('ping-take').addEventListener('click', function(){ clearInterval(iv); outcome='taken'; paintPing(); toast('Taken. A take raises a responder\'s standing.'); });
+  $('ping-no').addEventListener('click', function(){ clearInterval(iv); outcome='declined'; paintPing(); toast('Turned down. Next responder is pinged.'); });
+  function setWait(s){
+    WAIT=s;
+    document.querySelectorAll('#seg-wait-c button, #seg-wait-p button').forEach(function(b){
+      b.classList.toggle('on', +b.dataset.wait===s);
+    });
+    $('wait-note').textContent = s===90
+      ? 'Wait set to 90s, as before 4.2. Pre-4.2 missed pings were 1 to 3% a week. Whether 90s would bring that back is not proven.'
+      : 'Since 4.2 the wait is 60s. Compare with 90s, then let the clock run out to see a miss.';
+    startPing();
+  }
+  document.querySelectorAll('#seg-wait-c button, #seg-wait-p button').forEach(function(b){
+    b.addEventListener('click', function(){ setWait(+b.dataset.wait); });
+  });
+  document.querySelectorAll('#seg-speed-c button, #seg-speed-p button').forEach(function(b){
+    b.addEventListener('click', function(){
+      SPEED=+b.dataset.speed;
+      document.querySelectorAll('#seg-speed-c button, #seg-speed-p button').forEach(function(x){
+        x.classList.toggle('on', +x.dataset.speed===SPEED);
+      });
+      startPing();
+    });
+  });
+  $('live-restart').addEventListener('click', startPing);
+  $('ping-restart').addEventListener('click', startPing);
+
+  renderConsole(); renderPhone();
+})();
+</script>
+</body>
+</html>
