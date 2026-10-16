@@ -15,6 +15,20 @@ prompt library built from your own questions.
 
 ### 1.
 
+Also ensure there are no contradictions throughout the brief
+
 ### 2.
 
+Do you have any other recommendations of what to check?
+
 ### 3.
+
+run review_checklist on brief I just created
+
+### 4.
+
+run review_checklist on brief https://github.com/shbernard2424/claude-code-for-pms-final/blob/main/05-super-speed/quiet-responder-brief.md
+
+### 5.
+
+Schedule review-checklist to run every Monday morning, and let me know what it finds. Nothing needs to be ready for it to fire today. I'm setting the habit, not waiting on the result.
